@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/shaders">
+        <file>shaders/vert.shader</file>
+        <file>shaders/geomVertices.shader</file>
+        <file>shaders/geomLines.shader</file>
+        <file>shaders/frag.shader</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file>icons/open-file-icon.png</file>
+    </qresource>
+</RCC>
