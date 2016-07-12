@@ -10,11 +10,12 @@ GLWidget::GLWidget(QWidget *parent)
         : QOpenGLWidget(parent),
           m_maxCoord(1.0f),
           m_zoom(100.0f),
-          m_xRotWorld(0),
-          m_yRotWorld(0),
-          m_zRotWorld(0),
+          m_rotCenter(QVector3D(0.0f, 0.0f, 0.0f)),
+          m_xRot(0),
+          m_yRot(0),
+          m_zRot(0),
           m_nearPlane(0.01f),
-          m_farPlane(10.0f)
+          m_farPlane(100.0f)
 {
     m_progsMap = new QMap<Drawables, QOpenGLShaderProgram*>();
 }
@@ -42,39 +43,73 @@ void GLWidget::initializeGL()
 {
     m_winWidth = this->width();
     m_winHeight = this->height();
-    m_RotWorld = QMatrix4x4();
-    m_RotScreen = QMatrix4x4();
-    m_triadMvpMatrix = QMatrix4x4();
+
+    m_triadModMatrix = QMatrix4x4();
     m_viewportModMatrix = QMatrix4x4();
-    m_viewportMvpMatrix = QMatrix4x4();
+    this->updateMatrices();
+    initializeOpenGLFunctions();
+    glClearColor(0.2, 0.2, 0.2, 1);
+}
+void GLWidget::updateMatrices() {
     this->buildTriadMvpMatrix();
     this->buildViewportMvpMatrix();
-    initializeOpenGLFunctions();
-    glClearColor(0, 0, 0, 1);
 }
 void GLWidget::paintGL()
 {
+    glClearDepthf(0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_GEQUAL);
     glEnable(GL_CULL_FACE);
 
-    QVector<GLfloat> vertCoordsPoint;
-    vertCoordsPoint.append(0.0f);
-    vertCoordsPoint.append(0.0f);
-    vertCoordsPoint.append(0.0f);
-    QVector<GLfloat> vertCoordsLine;
-    vertCoordsLine.append(0.0f);
-    vertCoordsLine.append(0.0f);
-    vertCoordsLine.append(0.0f);
-    vertCoordsLine.append(0.5f);
-    vertCoordsLine.append(0.0f);
-    vertCoordsLine.append(0.0f);
+    QVector<GLfloat> vertCoordsPoint1;
+    vertCoordsPoint1.append(0.0f);
+    vertCoordsPoint1.append(0.0f);
+    vertCoordsPoint1.append(0.0f);
+    QVector<GLfloat> vertCoordsPoint2;
+    vertCoordsPoint2.append(0.5f);
+    vertCoordsPoint2.append(0.0f);
+    vertCoordsPoint2.append(0.0f);
+    QVector<GLfloat> vertCoordsPoint3;
+    vertCoordsPoint3.append(0.0f);
+    vertCoordsPoint3.append(0.5f);
+    vertCoordsPoint3.append(0.0f);
+    QVector<GLfloat> vertCoordsPoint4;
+    vertCoordsPoint4.append(0.0f);
+    vertCoordsPoint4.append(0.0f);
+    vertCoordsPoint4.append(0.5f);
+    QVector<GLfloat> vertCoordsLine1;
+    vertCoordsLine1.append(0.0f);
+    vertCoordsLine1.append(0.0f);
+    vertCoordsLine1.append(0.0f);
+    vertCoordsLine1.append(0.5f);
+    vertCoordsLine1.append(0.0f);
+    vertCoordsLine1.append(0.0f);
+    QVector<GLfloat> vertCoordsLine2;
+    vertCoordsLine2.append(0.0f);
+    vertCoordsLine2.append(0.0f);
+    vertCoordsLine2.append(0.0f);
+    vertCoordsLine2.append(0.0f);
+    vertCoordsLine2.append(0.5f);
+    vertCoordsLine2.append(0.0f);
+    QVector<GLfloat> vertCoordsLine3;
+    vertCoordsLine3.append(0.0f);
+    vertCoordsLine3.append(0.0f);
+    vertCoordsLine3.append(0.0f);
+    vertCoordsLine3.append(0.0f);
+    vertCoordsLine3.append(0.0f);
+    vertCoordsLine3.append(0.5f);
 
     this->drawTriad();
-//    this->drawPoint(vertCoordsPoint);
-//    this->drawLine(vertCoordsLine);
+    this->drawPoint(vertCoordsPoint1);
+    this->drawPoint(vertCoordsPoint2);
+    this->drawPoint(vertCoordsPoint3);
+    this->drawPoint(vertCoordsPoint4);
+    this->drawLine(vertCoordsLine1);
+    this->drawLine(vertCoordsLine2);
+    this->drawLine(vertCoordsLine3);
 }
 QOpenGLShaderProgram* GLWidget::getShaderProgram(
         GLWidget::Drawables geomType,
@@ -109,93 +144,42 @@ QOpenGLShaderProgram* GLWidget::getShaderProgram(
     }
     return program;
 }
-void GLWidget::buildTriadMvpMatrix()
+QMatrix4x4 GLWidget::buildTriadMvpMatrix()
 {
     QMatrix4x4 xRotScreen;
     QMatrix4x4 yRotScreen;
     QMatrix4x4 zRotScreen;
     QMatrix4x4 rotScreen;
-    QMatrix4x4 rotWorld;
-    QMatrix4x4 modMatrix;
+    QMatrix4x4 transScreen;
     QMatrix4x4 camMatrix;
     QMatrix4x4 viewMatrix;
     QMatrix4x4 projMatrix;
-    QVector3D xAxisWorld = QVector3D(1.0f, 0.0f, 0.0f);
-    QVector3D yAxisWorld = QVector3D(0.0f, 1.0f, 0.0f);
-    QVector3D zAxisWorld = QVector3D(0.0f, 0.0f, 1.0f);
-    QVector3D xAxisScreen;
-    QVector3D yAxisScreen;
-    QVector3D zAxisScreen;
+    QMatrix4x4 mvpMatrix;
+    QVector3D xAxis = QVector3D(1.0f, 0.0f, 0.0f);
+    QVector3D yAxis = QVector3D(0.0f, 1.0f, 0.0f);
+    QVector3D zAxis = QVector3D(0.0f, 0.0f, 1.0f);
 
     // BUILD MVP MATRIX
     // Model matrix
-
-    rotScreen = m_RotScreen;
     xRotScreen.setToIdentity();
-    xRotScreen.rotate((float)m_xRotScreen, xAxisWorld);
+    xRotScreen.rotate((float)m_xRot, xAxis);
     yRotScreen.setToIdentity();
-    yRotScreen.rotate((float)m_yRotScreen, yAxisWorld);
+    yRotScreen.rotate((float)m_yRot, yAxis);
     zRotScreen.setToIdentity();
-    zRotScreen.rotate((float)m_zRotScreen, zAxisWorld);
+    zRotScreen.rotate((float)m_zRot, zAxis);
     rotScreen = zRotScreen * yRotScreen * xRotScreen * rotScreen;
-    m_RotScreen = rotScreen;
-
-    rotWorld = m_RotWorld;
-    rotWorld.rotate((float)m_xRotWorld, xAxisWorld);
-    rotWorld.rotate((float)m_yRotWorld, yAxisWorld);
-    rotWorld.rotate((float)m_zRotWorld, zAxisWorld);
-    m_RotWorld = rotWorld;
-
-    modMatrix = rotScreen * rotWorld;
+    m_triadModMatrix = rotScreen * m_triadModMatrix;
 
     // Camera matrix and View matrix
-    this->setCameraZ();
     camMatrix.setToIdentity();
     QVector3D cameraEye = QVector3D(camMatrix *
             QVector4D(0.0f, 0.0f, 1.0f, 1.0f));
     viewMatrix.setToIdentity();
     viewMatrix.lookAt(
-     cameraEye,                     // eye
-     QVector3D(0.0f, 0.0f, 0.0f),   // center
-     QVector3D(0.0f, 1.0f, 0.0f) ); // up
-    // Projection matrix
-    projMatrix.setToIdentity();
-    projMatrix.perspective(
-     45.0f,                                       // angle
-     (float)m_winWidth /(float)m_winHeight,       // aspect
-     m_nearPlane,                                 // near plane
-     m_farPlane);                                 // far plane
-
-    // Multiply p*v*m
-    m_triadMvpMatrix = projMatrix * viewMatrix * modMatrix;
-}
-QMatrix4x4 GLWidget::buildViewportMvpMatrix()
-{
-    QMatrix4x4 modMatrix;
-    QMatrix4x4 camMatrix;
-    QMatrix4x4 viewMatrix;
-    QMatrix4x4 projMatrix;
-    QMatrix4x4 mvpMatrix;
-
-    // BUILD MVP MATRIX
-    // Model matrix
-    modMatrix.setToIdentity();
-    QVector3D xAxis = QVector3D(1.0f, 0.0f, 0.0f);
-    QVector3D yAxis = QVector3D(0.0f, 1.0f, 0.0f);
-    QVector3D zAxis = QVector3D(0.0f, 0.0f, 1.0f);
-    modMatrix.rotate((float)m_xRotWorld, xAxis);
-    modMatrix.rotate((float)m_yRotWorld, yAxis);
-    modMatrix.rotate((float)m_zRotWorld, zAxis);
-    // Camera matrix and View matrix
-    camMatrix.setToIdentity();
-    this->setCameraZ();
-    QVector3D cameraEye = QVector3D(camMatrix *
-        QVector4D(0.0f, 0.0f, m_cameraZ, 1.0f));
-    viewMatrix.setToIdentity();
-    viewMatrix.lookAt(
         cameraEye,                     // eye
         QVector3D(0.0f, 0.0f, 0.0f),   // center
         QVector3D(0.0f, 1.0f, 0.0f) ); // up
+
     // Projection matrix
     projMatrix.setToIdentity();
     projMatrix.perspective(
@@ -203,8 +187,71 @@ QMatrix4x4 GLWidget::buildViewportMvpMatrix()
         (float)m_winWidth /(float)m_winHeight,       // aspect
         m_nearPlane,                                 // near plane
         m_farPlane);                                 // far plane
+        projMatrix.ortho(-1.0f, 1.0f, -1.0f, 1.0f, m_nearPlane, m_farPlane);
+
+    transScreen.setToIdentity();
+    transScreen.translate(-0.87f, -0.75f, 0.0f);
+
     // Multiply p*v*m
-    mvpMatrix = projMatrix * viewMatrix * modMatrix;
+    mvpMatrix = transScreen * projMatrix * viewMatrix * m_triadModMatrix;
+    return mvpMatrix;
+}
+QMatrix4x4 GLWidget::buildViewportMvpMatrix()
+{
+    QMatrix4x4 xRotScreen;
+    QMatrix4x4 yRotScreen;
+    QMatrix4x4 zRotScreen;
+    QMatrix4x4 xTransScreen;
+    QMatrix4x4 yTransScreen;
+    QMatrix4x4 transScreen;
+    QMatrix4x4 rotScreen;
+    QMatrix4x4 camMatrix;
+    QMatrix4x4 viewMatrix;
+    QMatrix4x4 projMatrix;
+    QMatrix4x4 mvpMatrix;
+    QVector3D xAxis = QVector3D(1.0f, 0.0f, 0.0f);
+    QVector3D yAxis = QVector3D(0.0f, 1.0f, 0.0f);
+    QVector3D zAxis = QVector3D(0.0f, 0.0f, 1.0f);
+
+    // BUILD MVP MATRIX
+    // Model matrix
+    xTransScreen.setToIdentity();
+    xTransScreen.translate(m_xTrans * xAxis);
+    yTransScreen.setToIdentity();
+    yTransScreen.translate(m_yTrans * yAxis);
+    transScreen = xTransScreen * yTransScreen;
+    m_viewportModMatrix = transScreen * m_viewportModMatrix;
+
+    xRotScreen.setToIdentity();
+    xRotScreen.rotate((float)m_xRot, xAxis);
+    yRotScreen.setToIdentity();
+    yRotScreen.rotate((float)m_yRot, yAxis);
+    zRotScreen.setToIdentity();
+    zRotScreen.rotate((float)m_zRot, zAxis);
+    rotScreen = zRotScreen * yRotScreen * xRotScreen * rotScreen;
+    m_viewportModMatrix = rotScreen * m_viewportModMatrix;
+
+    // Camera matrix and View matrix
+    camMatrix.setToIdentity();
+    float cameraZ = this->getCameraZ(m_maxCoord, m_zoom);
+    QVector3D cameraEye = QVector3D(camMatrix *
+            QVector4D(0.0f, 0.0f, cameraZ, 1.0f));
+    viewMatrix.setToIdentity();
+    viewMatrix.lookAt(
+        cameraEye,                     // eye
+        QVector3D(0.0f, 0.0f, 0.0f),   // center
+        QVector3D(0.0f, 1.0f, 0.0f) ); // up
+
+    // Projection matrix
+    projMatrix.setToIdentity();
+    projMatrix.perspective(
+        45.0f,                                       // angle
+        (float)m_winWidth /(float)m_winHeight,       // aspect
+        m_nearPlane,                                 // near plane
+        m_farPlane);                                 // far plane
+
+    // Multiply p*v*m
+    mvpMatrix = projMatrix * viewMatrix * m_viewportModMatrix;
     return mvpMatrix;
 }
 void GLWidget::draw(GLWidget::Drawables geomType,
@@ -219,6 +266,7 @@ void GLWidget::draw(GLWidget::Drawables geomType,
     QOpenGLShaderProgram *program = 0;
     QOpenGLVertexArrayObject vao;
     QOpenGLBuffer vbo;
+    QMatrix4x4 triadMvpMatrix;
     QMatrix4x4 viewportMvpMatrix;
     QMatrix4x4 mvpMatrix;
     int coordsLoc;
@@ -226,29 +274,30 @@ void GLWidget::draw(GLWidget::Drawables geomType,
     int colorInLoc;
     int drawingMode;
 
+    triadMvpMatrix = this->buildTriadMvpMatrix();
     viewportMvpMatrix = this->buildViewportMvpMatrix();
-
-    if(geomType == GLWidget::Drawables::TRIAD_ARROW)
+    if((geomType == GLWidget::Drawables::TRIAD_ORIGO) ||
+       (geomType == GLWidget::Drawables::TRIAD_ARROW))
     {
-        // Paths to shaders
+        // Parameters
         vertPath = ":/shaders/shaders/vert.shader";
         geomPath = ":/shaders/shaders/geomVertices.shader";
         fragPath = ":/shaders/shaders/frag.shader";
-        mvpMatrix = m_triadMvpMatrix;
+        mvpMatrix = triadMvpMatrix;
         drawingMode = GL_POINTS;
     }
     else if(geomType == GLWidget::Drawables::TRIAD_AXIS)
     {
-        // Paths to shaders
+        // Parameters
         vertPath = ":/shaders/shaders/vert.shader";
         geomPath = ":/shaders/shaders/geomLines.shader";
         fragPath = ":/shaders/shaders/frag.shader";
-        mvpMatrix = m_triadMvpMatrix;
+        mvpMatrix = triadMvpMatrix;
         drawingMode = GL_LINES;
     }
     else if(geomType == GLWidget::Drawables::POINT)
     {
-        // Paths to shaders
+        // Parameters
         vertPath = ":/shaders/shaders/vert.shader";
         geomPath = ":/shaders/shaders/geomVertices.shader";
         fragPath = ":/shaders/shaders/frag.shader";
@@ -257,7 +306,7 @@ void GLWidget::draw(GLWidget::Drawables geomType,
     }
     else if(geomType == GLWidget::Drawables::LINE)
     {
-        // Paths to shaders
+        // Parameters
         vertPath = ":/shaders/shaders/vert.shader";
         geomPath = ":/shaders/shaders/geomLines.shader";
         fragPath = ":/shaders/shaders/frag.shader";
@@ -338,6 +387,10 @@ void GLWidget::drawTriad()
     this->draw(GLWidget::Drawables::TRIAD_AXIS, xAxisCoords, QColor("Red"));
     this->draw(GLWidget::Drawables::TRIAD_AXIS, yAxisCoords, QColor("Green"));
     this->draw(GLWidget::Drawables::TRIAD_AXIS, zAxisCoords, QColor("Blue"));
+    QVector<GLfloat> origoCoords;
+    origoCoords.append(0.0f);
+    origoCoords.append(0.0f);
+    origoCoords.append(0.0f);
     QVector<GLfloat> xArrowCoords;
     xArrowCoords.append(0.07f);
     xArrowCoords.append(0.0f);
@@ -350,6 +403,7 @@ void GLWidget::drawTriad()
     zArrowCoords.append(0.0f);
     zArrowCoords.append(0.0f);
     zArrowCoords.append(0.07f);
+    this->draw(GLWidget::Drawables::TRIAD_ORIGO, origoCoords, QColor("White"));
     this->draw(GLWidget::Drawables::TRIAD_ARROW, xArrowCoords, QColor("Red"));
     this->draw(GLWidget::Drawables::TRIAD_ARROW, yArrowCoords, QColor("Green"));
     this->draw(GLWidget::Drawables::TRIAD_ARROW, zArrowCoords, QColor("Blue"));
@@ -362,108 +416,90 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event) {
     int dy = event->y() - m_lastMousePos.y();
     QFlags<Qt::KeyboardModifiers> ctrl_alt = QFlags<Qt::KeyboardModifiers>(
             Qt::ControlModifier|Qt::AltModifier);
-    QFlags<Qt::KeyboardModifiers> shift_ctrl_alt =
-            QFlags<Qt::KeyboardModifiers>(
-            Qt::ShiftModifier|Qt::ControlModifier|Qt::AltModifier);
 
     if (QGuiApplication::keyboardModifiers() == ctrl_alt) {
         if (event->buttons() & Qt::LeftButton) {
-            setXRotationScreen(dy);
-            setYRotationScreen(dx);
-        } else if (event->buttons() & Qt::RightButton) {
-            setXRotationScreen(dy);
-            setZRotationScreen(dx);
+            setXRotation(dy);
+            setYRotation(dx);
         }
-        this->buildTriadMvpMatrix();
-        this->buildViewportMvpMatrix();
-        m_xRotScreen = 0;
-        m_yRotScreen = 0;
-        m_zRotScreen = 0;
-    } else if (QGuiApplication::keyboardModifiers() == shift_ctrl_alt) {
-        if (event->buttons() & Qt::LeftButton) {
-            setXRotationWorld(dy);
-            setYRotationWorld(dx);
-        } else if (event->buttons() & Qt::RightButton) {
-            setXRotationWorld(dy);
-            setZRotationWorld(dx);
+        else if (event->buttons() & Qt::RightButton) {
+            setXRotation(dy);
+            setZRotation(dx);
         }
-        this->buildTriadMvpMatrix();
-        this->buildViewportMvpMatrix();
-        m_xRotWorld = 0;
-        m_yRotWorld = 0;
-        m_zRotWorld = 0;
+        else if (event->buttons() & Qt::MiddleButton) {
+            setXTranslation((float)dx);
+            setYTranslation((float)dy);
+        }
+        this->updateMatrices();
+        setXTranslation(0.0f);
+        setYTranslation(0.0f);
+        setXRotation(0);
+        setYRotation(0);
+        setZRotation(0);
     }
     m_lastMousePos = event->pos();
     this->update();
 }
-void GLWidget::wheelEvent(QWheelEvent *event) {
-    float numPixels = (float)event->pixelDelta().y();
-    float numDegrees = (float)event->angleDelta().y() / 120.0f;
-    float cameraZ;
-    float eps = 1E-03f;
+void GLWidget::wheelEvent(QWheelEvent *event)
+{
+    float numPixels = -(float)event->pixelDelta().y();
+    float numDegrees = -(float)event->angleDelta().y() / 120.0f;
+    float numSteps;
+    float attemptCameraZ;
+
     if (!event->pixelDelta().isNull()) {
-        cameraZ = m_zoom / 100.0f;
-        if (cameraZ > m_nearPlane) {
-            m_zoom -= numPixels;
-        } else {
-            while (!(cameraZ > m_nearPlane)) {
-                if (numPixels > eps) {
-                    numPixels /= 100.0f;
-                } else {
-                     numPixels = 0.0f;
-                     break;
-                }
-            }
-            m_zoom -= numPixels;
+        numSteps = numPixels;
+        attemptCameraZ = this->getCameraZ(m_maxCoord, m_zoom + numSteps);
+        if ((attemptCameraZ >= m_nearPlane) &&
+           (attemptCameraZ <= m_farPlane)) {
+          m_zoom += numSteps;
         }
-    } else if (!event->angleDelta().isNull()) {
-      float numSteps = numDegrees;
-      cameraZ = m_zoom / 100.0f;
-      if ((cameraZ > m_nearPlane) ||
-          ((cameraZ == m_nearPlane) && (numSteps > 0.0f))) {
-          m_zoom -= numSteps;
-      }
-      else {
-        numSteps = 0.0f;
-      }
+        else {
+          numPixels = 0.0f;
+        }
     }
-    this->buildTriadMvpMatrix();
+    else if (!event->angleDelta().isNull()) {
+        numSteps = numDegrees;
+        attemptCameraZ = this->getCameraZ(m_maxCoord, m_zoom + numSteps);
+        if ((attemptCameraZ >= m_nearPlane) &&
+           (attemptCameraZ <= m_farPlane)) {
+          m_zoom += numSteps;
+        }
+        else {
+        numSteps = 0.0f;
+        }
+    }
+    this->updateMatrices();
     event->accept();
     this->update();
 }
-void GLWidget::setCameraZ()
+float GLWidget::getCameraZ(float maxCoord, float zoom)
 {
-    m_cameraZ = 100.0f * m_maxCoord / m_zoom;
+    float cameraZ = 100.0f * maxCoord / zoom;
+    return cameraZ;
 }
-void GLWidget::setXRotationScreen(int angle)
+void GLWidget::setXTranslation(float deltaX)
+{
+    m_xTrans = deltaX / 50.0f;
+}
+void GLWidget::setYTranslation(float deltaY)
+{
+    m_yTrans = -deltaY / 50.0f;
+}
+void GLWidget::setXRotation(int angle)
 {
     qNormalizeAngle(angle);
-    m_xRotScreen = angle;
+    m_xRot = angle;
 }
-void GLWidget::setYRotationScreen(int angle)
+void GLWidget::setYRotation(int angle)
 {
     qNormalizeAngle(angle);
-    m_yRotScreen = angle;
+    m_yRot = angle;
 }
-void GLWidget::setZRotationScreen(int angle)
+void GLWidget::setZRotation(int angle)
 {
     qNormalizeAngle(angle);
-    m_zRotScreen = angle;
-}
-void GLWidget::setXRotationWorld(int angle)
-{
-    qNormalizeAngle(angle);
-    m_xRotWorld = angle;
-}
-void GLWidget::setYRotationWorld(int angle)
-{
-    qNormalizeAngle(angle);
-    m_yRotWorld = angle;
-}
-void GLWidget::setZRotationWorld(int angle)
-{
-    qNormalizeAngle(angle);
-    m_zRotWorld = angle;
+    m_zRot = angle;
 }
 void GLWidget::cleanup()
 {

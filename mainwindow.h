@@ -16,8 +16,13 @@ public:
     ~MainWindow();
 
 private:
-    Ui::MainWindow *ui;
-    GLWidget *glWidget;
+    Ui::MainWindow *m_ui;
+    GLWidget *m_glWidget;
+
+    bool checkInputCoords(QString input);
+
+public slots:
+    void onCreatePoint();
 };
 
 #endif // MAINWINDOW_H

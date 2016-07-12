@@ -19,6 +19,7 @@ public:
     ~GLWidget();
 
     enum Drawables {
+        TRIAD_ORIGO,
         TRIAD_ARROW,
         TRIAD_AXIS,
         POINT,
@@ -26,13 +27,12 @@ public:
     };
     QSize minimumSizeHint() const Q_DECL_OVERRIDE;
     QSize sizeHint() const Q_DECL_OVERRIDE;
-    void setXRotationScreen(int angle);
-    void setYRotationScreen(int angle);
-    void setZRotationScreen(int angle);
-    void setXRotationWorld(int angle);
-    void setYRotationWorld(int angle);
-    void setZRotationWorld(int angle);
-    void setCameraZ();
+    void setXTranslation(float deltaX);
+    void setYTranslation(float deltaY);
+    void setXRotation(int angle);
+    void setYRotation(int angle);
+    void setZRotation(int angle);
+    float getCameraZ(float maxCoord, float zoom);
 
     void cleanup();
     void drawPoint(QVector<GLfloat> vertCoords,
@@ -45,6 +45,7 @@ protected:
     void paintGL() Q_DECL_OVERRIDE;
     void mousePressEvent(QMouseEvent *event) Q_DECL_OVERRIDE;
     void mouseMoveEvent(QMouseEvent *event) Q_DECL_OVERRIDE;
+    void updateMatrices();
     void wheelEvent(QWheelEvent *event) Q_DECL_OVERRIDE;
 
 private:
@@ -53,19 +54,16 @@ private:
     float m_maxCoord;
     float m_zoom;
     float m_cameraZ;
-    int m_xRotScreen;
-    int m_yRotScreen;
-    int m_zRotScreen;
-    int m_xRotWorld;
-    int m_yRotWorld;
-    int m_zRotWorld;
+    float m_xTrans;
+    float m_yTrans;
+    QVector3D m_rotCenter;
+    int m_xRot;
+    int m_yRot;
+    int m_zRot;
     float m_nearPlane;
     float m_farPlane;
-    QMatrix4x4 m_RotWorld;
-    QMatrix4x4 m_RotScreen;
-    QMatrix4x4 m_triadMvpMatrix;
+    QMatrix4x4 m_triadModMatrix;
     QMatrix4x4 m_viewportModMatrix;
-    QMatrix4x4 m_viewportMvpMatrix;
     QMap<Drawables, QOpenGLShaderProgram*> *m_progsMap;
     QPoint m_lastMousePos;
 
@@ -77,7 +75,7 @@ private:
               QColor colorIn = QColor("LightSkyBlue"));
     void drawTriad();
     QMatrix4x4 buildViewportMvpMatrix();
-    void buildTriadMvpMatrix();
+    QMatrix4x4 buildTriadMvpMatrix();
 };
 
 #endif

@@ -18,9 +18,11 @@ class Entity {
 protected:
     Entity();
     QString name = QString();
-    QString hierarchy = QString("Entity");
+    const char* label = "Entity";
+    QString hierarchy = QString();
     QVector<Entity*>* parents = new QVector<Entity*>();
     QVector<Entity*>* children = new QVector<Entity*>();
+    void updateHierarchy();
 public:
     ~Entity();
     QString getName();
@@ -42,6 +44,8 @@ public:
 class Point : public Entity, public Collector<Point> {
 private:
     float coords[3];
+protected:
+    const char* label = "Point";
 public:
     Point(float x, float y, float z);
     ~Point();
@@ -52,6 +56,8 @@ class Line : public Entity, public Collector<Line> {
 private:
     Point* startPoint;
     Point* endPoint;
+protected:
+    const char* label = "Line";
 public:
     Line(Point *startP, Point *endP);
     ~Line();

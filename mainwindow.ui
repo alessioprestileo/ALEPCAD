@@ -112,6 +112,8 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionOpen_File"/>
+   <addaction name="separator"/>
+   <addaction name="actionCreate_Point"/>
   </widget>
   <action name="actionOpen_File">
    <property name="icon">
@@ -136,6 +138,21 @@
   <action name="actionExit_Application">
    <property name="text">
     <string>Exit Application</string>
+   </property>
+  </action>
+  <action name="actionCreate_Point">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/icons/icons/create-point-icon.svg</normaloff>:/icons/icons/create-point-icon.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Create Point</string>
+   </property>
+   <property name="toolTip">
+    <string>Create new point</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+P</string>
    </property>
   </action>
  </widget>
