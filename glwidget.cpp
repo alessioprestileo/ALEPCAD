@@ -10,6 +10,8 @@ GLWidget::GLWidget(QWidget *parent)
         : QOpenGLWidget(parent),
           m_maxCoord(1.0f),
           m_zoom(100.0f),
+          m_xTrans(0.0f),
+          m_yTrans(0.0f),
           m_rotCenter(QVector3D(0.0f, 0.0f, 0.0f)),
           m_xRot(0),
           m_yRot(0),
@@ -44,8 +46,8 @@ void GLWidget::initializeGL()
     m_winWidth = this->width();
     m_winHeight = this->height();
 
-    m_triadModMatrix = QMatrix4x4();
-    m_viewportModMatrix = QMatrix4x4();
+    m_triadModMatrix.setToIdentity();
+    m_viewportModMatrix.setToIdentity();
     this->updateMatrices();
     initializeOpenGLFunctions();
     glClearColor(0.2, 0.2, 0.2, 1);
@@ -125,19 +127,15 @@ QOpenGLShaderProgram* GLWidget::getShaderProgram(
     else {
         program = new QOpenGLShaderProgram;
         m_progsMap->insert(geomType, program);
-
         std::vector<char> vertBufffer;
         const char* vertSource = ShaderHelper::readShaderSrc(
                 vertPath, vertBufffer);
-
         std::vector<char> geomBufffer;
         const char* geomSource = ShaderHelper::readShaderSrc(
                 geomPath, geomBufffer);
-
         std::vector<char> fragBufffer;
         const char* fragSource = ShaderHelper::readShaderSrc(
                 fragPath, fragBufffer);
-
         program->addShaderFromSourceCode(QOpenGLShader::Vertex, vertSource);
         program->addShaderFromSourceCode(QOpenGLShader::Geometry, geomSource);
         program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragSource);
@@ -169,7 +167,6 @@ QMatrix4x4 GLWidget::buildTriadMvpMatrix()
     zRotScreen.rotate((float)m_zRot, zAxis);
     rotScreen = zRotScreen * yRotScreen * xRotScreen * rotScreen;
     m_triadModMatrix = rotScreen * m_triadModMatrix;
-
     // Camera matrix and View matrix
     camMatrix.setToIdentity();
     QVector3D cameraEye = QVector3D(camMatrix *
@@ -179,7 +176,6 @@ QMatrix4x4 GLWidget::buildTriadMvpMatrix()
         cameraEye,                     // eye
         QVector3D(0.0f, 0.0f, 0.0f),   // center
         QVector3D(0.0f, 1.0f, 0.0f) ); // up
-
     // Projection matrix
     projMatrix.setToIdentity();
     projMatrix.perspective(
@@ -188,23 +184,22 @@ QMatrix4x4 GLWidget::buildTriadMvpMatrix()
         m_nearPlane,                                 // near plane
         m_farPlane);                                 // far plane
         projMatrix.ortho(-1.0f, 1.0f, -1.0f, 1.0f, m_nearPlane, m_farPlane);
-
+    // Move to viewport corner
     transScreen.setToIdentity();
     transScreen.translate(-0.87f, -0.75f, 0.0f);
-
     // Multiply p*v*m
     mvpMatrix = transScreen * projMatrix * viewMatrix * m_triadModMatrix;
     return mvpMatrix;
 }
 QMatrix4x4 GLWidget::buildViewportMvpMatrix()
 {
-    QMatrix4x4 xRotScreen;
-    QMatrix4x4 yRotScreen;
-    QMatrix4x4 zRotScreen;
-    QMatrix4x4 xTransScreen;
-    QMatrix4x4 yTransScreen;
-    QMatrix4x4 transScreen;
-    QMatrix4x4 rotScreen;
+    QMatrix4x4 xRotMat;
+    QMatrix4x4 yRotMat;
+    QMatrix4x4 zRotMat;
+    QMatrix4x4 xTransMat;
+    QMatrix4x4 yTransMat;
+    QMatrix4x4 transMat;
+    QMatrix4x4 rotMat;
     QMatrix4x4 camMatrix;
     QMatrix4x4 viewMatrix;
     QMatrix4x4 projMatrix;
@@ -215,22 +210,20 @@ QMatrix4x4 GLWidget::buildViewportMvpMatrix()
 
     // BUILD MVP MATRIX
     // Model matrix
-    xTransScreen.setToIdentity();
-    xTransScreen.translate(m_xTrans * xAxis);
-    yTransScreen.setToIdentity();
-    yTransScreen.translate(m_yTrans * yAxis);
-    transScreen = xTransScreen * yTransScreen;
-    m_viewportModMatrix = transScreen * m_viewportModMatrix;
-
-    xRotScreen.setToIdentity();
-    xRotScreen.rotate((float)m_xRot, xAxis);
-    yRotScreen.setToIdentity();
-    yRotScreen.rotate((float)m_yRot, yAxis);
-    zRotScreen.setToIdentity();
-    zRotScreen.rotate((float)m_zRot, zAxis);
-    rotScreen = zRotScreen * yRotScreen * xRotScreen * rotScreen;
-    m_viewportModMatrix = rotScreen * m_viewportModMatrix;
-
+    xTransMat.setToIdentity();
+    xTransMat.translate(m_xTrans * xAxis);
+    yTransMat.setToIdentity();
+    yTransMat.translate(m_yTrans * yAxis);
+    transMat = xTransMat * yTransMat;
+    m_viewportModMatrix = transMat * m_viewportModMatrix;
+    xRotMat.setToIdentity();
+    xRotMat.rotate((float)m_xRot, xAxis);
+    yRotMat.setToIdentity();
+    yRotMat.rotate((float)m_yRot, yAxis);
+    zRotMat.setToIdentity();
+    zRotMat.rotate((float)m_zRot, zAxis);
+    rotMat = zRotMat * yRotMat * xRotMat;
+    m_viewportModMatrix = rotMat * m_viewportModMatrix;
     // Camera matrix and View matrix
     camMatrix.setToIdentity();
     float cameraZ = this->getCameraZ(m_maxCoord, m_zoom);
@@ -241,7 +234,6 @@ QMatrix4x4 GLWidget::buildViewportMvpMatrix()
         cameraEye,                     // eye
         QVector3D(0.0f, 0.0f, 0.0f),   // center
         QVector3D(0.0f, 1.0f, 0.0f) ); // up
-
     // Projection matrix
     projMatrix.setToIdentity();
     projMatrix.perspective(
@@ -249,7 +241,6 @@ QMatrix4x4 GLWidget::buildViewportMvpMatrix()
         (float)m_winWidth /(float)m_winHeight,       // aspect
         m_nearPlane,                                 // near plane
         m_farPlane);                                 // far plane
-
     // Multiply p*v*m
     mvpMatrix = projMatrix * viewMatrix * m_viewportModMatrix;
     return mvpMatrix;

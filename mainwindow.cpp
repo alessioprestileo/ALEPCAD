@@ -10,7 +10,8 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     this->m_ui->setupUi(this);
     this->m_glWidget = this->m_ui->openGLWidget;
-    connect(this->m_ui->actionCreate_Point, SIGNAL(triggered()), this, SLOT(onCreatePoint()));
+    connect(this->m_ui->actionCreate_Point,
+            SIGNAL(triggered()), this, SLOT(onCreatePoint()));
 }
 MainWindow::~MainWindow() {
     delete this->m_ui;
@@ -18,7 +19,7 @@ MainWindow::~MainWindow() {
 bool MainWindow::checkInputCoords(QString input) {
     return true;
 }
-void MainWindow::onCreatePoint() {
+void MainWindow::getCoordsFromUser(float* &returnArray) {
     bool ok;
     QString text = QInputDialog::getText(this, "Create Point",
             "Insert coordinates x,y,z:\n"
@@ -31,11 +32,25 @@ void MainWindow::onCreatePoint() {
             float x = coordsList[0].toFloat();
             float y = coordsList[1].toFloat();
             float z = coordsList[2].toFloat();
-            Geometry::Point* p = new Geometry::Point(x,y,z);
-            qDebug()<<"hierarchy: "<<p->getHierarchy();
+            float coords[3] = {x, y, z};
+            returnArray = coords;
+        }
+        else {
+            qDebug()<<"Error: Bad input received for point creation";
+            returnArray = NULL;
         }
     }
     else {
-        return;
+        returnArray = NULL;
+    }
+}
+void MainWindow::onCreatePoint() {
+    float* coords;
+
+    this->getCoordsFromUser(coords);
+    if (coords) {
+        Geometry::Point* p = new Geometry::Point(coords[0], coords[1], coords[2]);
+        qDebug()<<"hierarchy: "<<p->getHierarchy();
+        qDebug()<<"name: "<<p->getName();
     }
 }
