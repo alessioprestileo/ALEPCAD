@@ -4,6 +4,8 @@
 #include <QVector>
 #include <QString>
 
+#include "glwidget.h"
+
 namespace Geometry {
 
 template <class T> class Collector{
@@ -31,6 +33,7 @@ public:
     QString getHierarchy();
     QVector<Entity*>* getParents();
     QVector<Entity*>* getChildren();
+    virtual void draw(GLWidget* glWidget) = 0;
 };
 class EntitiesCollector {
     friend class Entity;
@@ -41,6 +44,7 @@ private:
     static QVector<Entity*>* instances;
 public:
     static QVector<Entity*>* getInstances();
+    static void drawEntities(GLWidget* glWidget);
 };
 class Point : public Entity, public Collector<Point> {
 private:
@@ -52,6 +56,7 @@ public:
     ~Point();
     float* getCoords();
     void setCoords(float x, float y, float z);
+    virtual void draw(GLWidget* glWidget);
 };
 class Line : public Entity, public Collector<Line> {
 private:
@@ -66,6 +71,7 @@ public:
     void setStartPoint(Point* startP);
     Point* getEndPoint();
     void setEndPoint(Point* endP);
+    virtual void draw(GLWidget* glWidget);
 };
 }
 

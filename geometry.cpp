@@ -41,6 +41,15 @@ QVector<Geometry::Entity*>* Geometry::EntitiesCollector::instances =
 QVector<Geometry::Entity*>* Geometry::EntitiesCollector::getInstances() {
         return Geometry::EntitiesCollector::instances;
 }
+void Geometry::EntitiesCollector::drawEntities(GLWidget* glWidget) {
+    QVector<Geometry::Entity*>* entitiesCollector = Geometry::EntitiesCollector::getInstances();
+    QVector<Geometry::Entity*>::iterator iterator = entitiesCollector->begin();
+    while (iterator != entitiesCollector->end()) {
+        qDebug()<<"value from collector: "<<*iterator;
+        (*iterator)->draw(glWidget);
+        iterator++;
+    }
+}
 Geometry::Point::Point(float x, float y, float z) :
         Geometry::Entity() {
     count ++;
@@ -67,6 +76,15 @@ void Geometry::Point::setCoords(float x, float y, float z) {
     this->coords[0] = x;
     this->coords[1] = y;
     this->coords[2] = z;
+}
+void Geometry::Point::draw(GLWidget* glWidget) {
+    qDebug()<<"drawing point: ";
+    QVector<GLfloat> vertCoords = QVector<GLfloat>();
+    vertCoords.append(this->coords[0]);
+    vertCoords.append(this->coords[1]);
+    vertCoords.append(this->coords[2]);
+    glWidget->drawPoint(vertCoords);
+    qDebug()<<"finished drawing point.";
 }
 Geometry::Line::Line(Point* startP, Point* endP) {
     count ++;
@@ -95,4 +113,8 @@ Geometry::Point* Geometry::Line::getEndPoint() {
 }
 void Geometry::Line::setEndPoint(Point* endP) {
     this->endPoint = endP;
+}
+void Geometry::Line::draw(GLWidget* glWidget) {
+    qDebug()<<"drawing line: ";
+    qDebug()<<"finished drawing line.";
 }

@@ -5,6 +5,7 @@
 
 #include "glwidget.h"
 #include "shaderhelper.h"
+#include "geometry.h"
 
 GLWidget::GLWidget(QWidget *parent)
         : QOpenGLWidget(parent),
@@ -112,6 +113,8 @@ void GLWidget::paintGL()
     this->drawLine(vertCoordsLine1);
     this->drawLine(vertCoordsLine2);
     this->drawLine(vertCoordsLine3);
+
+    Geometry::EntitiesCollector::drawEntities(this);
 }
 QOpenGLShaderProgram* GLWidget::getShaderProgram(
         GLWidget::Drawables geomType,

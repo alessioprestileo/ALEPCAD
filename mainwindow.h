@@ -17,7 +17,7 @@ private:
     Ui::MainWindow *m_ui;
     GLWidget *m_glWidget;
     bool checkInputCoords(QString input);
-    void getCoordsFromUser(float* &returnArray);
+    void getCoordsFromUser(QVector<GLfloat> &vertCoordsPoint);
 
 public slots:
     void onCreatePoint();

@@ -19,7 +19,7 @@ MainWindow::~MainWindow() {
 bool MainWindow::checkInputCoords(QString input) {
     return true;
 }
-void MainWindow::getCoordsFromUser(float* &returnArray) {
+void MainWindow::getCoordsFromUser(QVector<GLfloat> &vertCoordsPoint) {
     bool ok;
     QString text = QInputDialog::getText(this, "Create Point",
             "Insert coordinates x,y,z:\n"
@@ -29,27 +29,30 @@ void MainWindow::getCoordsFromUser(float* &returnArray) {
         bool inputIsValid = this->checkInputCoords(text);
         if(inputIsValid) {
             QStringList coordsList = text.split(QChar(','));
-            float x = coordsList[0].toFloat();
-            float y = coordsList[1].toFloat();
-            float z = coordsList[2].toFloat();
-            float coords[3] = {x, y, z};
-            returnArray = coords;
+
+            qDebug()<<"coordsList: "<<coordsList;
+
+            vertCoordsPoint.append(coordsList[0].toFloat());
+            vertCoordsPoint.append(coordsList[1].toFloat());
+            vertCoordsPoint.append(coordsList[2].toFloat());
+
+            qDebug()<<"vertCoordsPoint: "<<vertCoordsPoint;
         }
         else {
             qDebug()<<"Error: Bad input received for point creation";
-            returnArray = NULL;
+            vertCoordsPoint = QVector<GLfloat>(3);
         }
     }
     else {
-        returnArray = NULL;
+        vertCoordsPoint = QVector<GLfloat>(3);
     }
 }
 void MainWindow::onCreatePoint() {
-    float* coords;
+    QVector<GLfloat> vertCoordsPoint = QVector<GLfloat>(0);
 
-    this->getCoordsFromUser(coords);
-    if (coords) {
-        Geometry::Point* p = new Geometry::Point(coords[0], coords[1], coords[2]);
+    this->getCoordsFromUser(vertCoordsPoint);
+    if (vertCoordsPoint.size()) {
+        Geometry::Point* p = new Geometry::Point(vertCoordsPoint.data()[0], vertCoordsPoint.data()[1], vertCoordsPoint.data()[2]);
         qDebug()<<"hierarchy: "<<p->getHierarchy();
         qDebug()<<"name: "<<p->getName();
     }
